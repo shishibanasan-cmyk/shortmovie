@@ -1,0 +1,18 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "background": "#101014",
+  "font": "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
+  "font_size": 72,
+  "text_color": "#ffffff",
+  "text_stroke": "#000000",
+  "fade": 0.5,
+  "bgm": null,
+  "bgm_volume": 0.6,
+  "scenes": [
+    {"image": "assets/images/sample_01.png", "text": "しししばなスタンプ", "duration": 2.5, "zoom": "in"},
+    {"image": "assets/images/sample_02.png", "text": "毎日つかえる\nゆるかわ表情", "duration": 2.5, "zoom": "out"},
+    {"image": "assets/images/sample_03.png", "text": "LINE STORE で\n発売中！", "duration": 3.0, "zoom": "in"}
+  ]
+}
