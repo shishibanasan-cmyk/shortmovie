@@ -8,6 +8,7 @@
 使い方:
     python scripts/make_video.py                # scenes.json -> output/short.mp4
     python scripts/make_video.py -c my.json -o output/my.mp4
+    python scripts/make_video.py --check        # 設定の確認だけ
 """
 from __future__ import annotations
 
@@ -120,8 +121,51 @@ def fade_alpha(t_sec: float, duration: float, fade: float) -> float:
     return max(0.0, a)
 
 
-def build(cfg_path: Path, out_path: Path) -> None:
+def validate(cfg: dict) -> list[str]:
+    """エンコード前に設定を確かめ、問題点の一覧を返す(空なら OK)。"""
+    errors = []
+    for key in ("width", "height", "fps"):
+        v = cfg.get(key)
+        if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
+            errors.append(f"{key} は正の整数にしてください: {v!r}")
+    if not cfg.get("background"):
+        errors.append("background を指定してください")
+    bgm = cfg.get("bgm")
+    if bgm and not (ROOT / bgm).exists():
+        errors.append(f"BGM が見つかりません: {bgm}")
+    scenes = cfg.get("scenes")
+    if not isinstance(scenes, list) or not scenes:
+        errors.append("scenes に 1 つ以上のシーンを書いてください")
+        return errors
+    for i, scene in enumerate(scenes, 1):
+        image = scene.get("image")
+        if not image:
+            errors.append(f"シーン{i}: image がありません")
+        elif not (ROOT / image).exists():
+            errors.append(f"シーン{i}: 画像が見つかりません: {image}")
+        d = scene.get("duration")
+        if not isinstance(d, (int, float)) or isinstance(d, bool) or d <= 0:
+            errors.append(f"シーン{i}: duration は 0 より大きい数にしてください: {d!r}")
+        if scene.get("zoom", "none") not in ("in", "out", "none"):
+            errors.append(f"シーン{i}: zoom は in / out / none のどれかです: {scene['zoom']!r}")
+        if scene.get("fit", "contain") not in ("contain", "cover"):
+            errors.append(f"シーン{i}: fit は contain / cover のどちらかです: {scene['fit']!r}")
+    return errors
+
+
+def load_config(cfg_path: Path) -> dict:
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    errors = validate(cfg)
+    if errors:
+        print(f"{cfg_path} に問題があるため中止します:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        sys.exit(1)
+    return cfg
+
+
+def build(cfg_path: Path, out_path: Path) -> None:
+    cfg = load_config(cfg_path)
     w, h, fps = cfg["width"], cfg["height"], cfg["fps"]
     fade = cfg.get("fade", 0.5)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,7 +202,7 @@ def build(cfg_path: Path, out_path: Path) -> None:
         sys.exit("ffmpeg のエンコードに失敗しました")
 
     bgm = cfg.get("bgm")
-    if bgm and (ROOT / bgm).exists():
+    if bgm:
         dur = total_frames / fps
         vol = cfg.get("bgm_volume", 0.6)
         cmd = [
@@ -172,14 +216,20 @@ def build(cfg_path: Path, out_path: Path) -> None:
         tmp_video.unlink()
     else:
         tmp_video.replace(out_path)
-    print(f"完成: {out_path} ({total_frames / fps:.1f} 秒, {w}x{h}, {fps}fps)")
+    audio = f"BGM {bgm}" if bgm else "音声なし"
+    print(f"完成: {out_path} ({total_frames / fps:.1f} 秒, {w}x{h}, {fps}fps, {len(cfg['scenes'])} シーン, {audio})")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-c", "--config", default=str(ROOT / "scenes.json"))
     ap.add_argument("-o", "--output", default=str(ROOT / "output" / "short.mp4"))
+    ap.add_argument("--check", action="store_true", help="設定の確認だけ行い、動画は作らない")
     args = ap.parse_args()
+    if args.check:
+        cfg = load_config(Path(args.config))
+        print(f"OK: {args.config} ({len(cfg['scenes'])} シーン, 合計 {sum(s['duration'] for s in cfg['scenes']):.1f} 秒)")
+        return
     build(Path(args.config), Path(args.output))
 
 
