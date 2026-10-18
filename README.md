@@ -14,7 +14,11 @@ LINEスタンプの紹介用ショート動画(縦型 1080x1920)を、画像と�
 pip install -r requirements.txt
 python scripts/make_video.py            # -> output/short.mp4
 python scripts/make_video.py -c scenes.json -o output/short.mp4
+python scripts/make_video.py --check    # 設定の確認だけ(動画は作らない)
 ```
+
+生成の前に `scenes.json` を確認し、画像や BGM が見つからない、`duration` が 0 以下、
+`zoom` / `fit` の値が不正、といった問題があれば一覧を表示して中止します。
 
 ## フォルダ構成
 
